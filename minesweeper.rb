@@ -1,25 +1,91 @@
 class Minesweeper
 
+  def initialize(board, player)
+    @board = board
+    @player = player
+  end
+
+  def play
+
+    until game_over?
+      row, col = @player.move
+      @board.reveal(row, col)
+    end
+
+  end
+
+  def game_over?
+    won? || lost?
+  end
+
+  def won?
+    @board.all_spaces_revealed?
+  end
+
+  def lost?
+    @board.mine_revealed?
+  end
+
 end
 
 class Board
   attr_reader :board
 
   def initialize(size)
-
+    @revealed = []
     @size = size
     @board = build_board
+    @mine_count = @size == 9 ? 10 : 40
+    generate_mines
+    generate_fringe
   end
 
   def build_board
     Array.new(@size) { Array.new(@size) }
   end
 
+  def show
+    @size.times do |row|
+      @size.times do |col|
+        print @revealed.include?([row, col]) ? "#{@board[row][col]}  " : "-  "
+      end
+      print "\n"
+    end
+    nil
+  end
+
+  def mine_revealed?
+    @revealed.any? do |row, col|
+      @board[row][col] == "X"
+    end
+  end
+
+  def all_spaces_revealed?
+    @revealed.length == @size**2 - @mine_count
+  end
+
+  def reveal(row, col)
+    @revealed << [row, col]
+    # game over if its a bomb
+    expand(row, col) if @board[row][col] == 0
+  end
+
+  def expand(row, col)
+    adjacent_coords = get_adjacent_coords(row, col)
+    adjacent_coords.each do |row, col|
+      if @board[row][col] != "X" && !@revealed.include?([row, col])
+        @revealed << [row, col]
+        expand(row, col) if @board[row][col] == 0
+      end
+    end
+
+
+  end
+
   def generate_mines
     mine_coords = []
-    mine_count = @size == 9 ? 10 : 40
 
-    until mine_coords.length == mine_count
+    until mine_coords.length == @mine_count
       row = (0...@size).to_a.sample
       col = (0...@size).to_a.sample
       mine_coords << [row, col] unless mine_coords.include?([row, col])
@@ -30,8 +96,66 @@ class Board
       @board[row][col] = "X"
     end
   end
+
+  def generate_fringe
+    @board.length.times do |row|
+      @board.length.times do |col|
+        next if @board[row][col] == "X"
+        @board[row][col] = count_adjacent_mines(row, col)
+      end
+    end
+  end
+
+  def count_adjacent_mines(row, col)
+    count = get_adjacent_values(row, col).select { |val| val == "X" }.count
+  end
+
+  def get_adjacent_coords(row, col)
+    adjacents = [[row - 1, col + 1], [row, col + 1], [row + 1, col + 1],
+    [row - 1, col], [row + 1, col], [row - 1, col - 1], [row, col - 1], [row + 1, col - 1]]
+
+    adjacents.reject { |coord| coord.include?(-1) || coord.include?(@size) }
+  end
+
+  def get_adjacent_values(row, col)
+    coords = get_adjacent_coords(row, col)
+    values = []
+    coords.each do |row, col|
+      values << @board[row][col]
+    end
+    values
+  end
+
+  def valid_move?(move)
+    row, col = move
+    (0...@size).include?(row) && (0...@size).include?(col) && !@revealed.include?(move)
+  end
 end
 
 class Player
+
+  def initialize(board)
+    @board = board
+  end
+
+  def move
+    @board.show
+    puts "Print move: "
+    move = gets.chomp.split(",").map(&:to_i)
+    until @board.valid_move?(move)
+      puts "Invalid move"
+      move = gets.chomp.split(",").map(&:to_i)
+    end
+    move
+  end
+
+end
+
+
+if __FILE__ == $PROGRAM_NAME
+  board = Board.new(9)
+  player = Player.new(board)
+  game = Minesweeper.new(board, player)
+  game.play
 
 end
