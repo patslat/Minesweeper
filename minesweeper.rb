@@ -8,9 +8,11 @@ class Minesweeper
   def play
 
     until game_over?
-      row, col = @player.move
-      @board.reveal(row, col)
+      flag, row, col = @player.move
+      flag ? @board.flag(row, col) : @board.reveal(row, col)
     end
+
+    puts won? ? "You won!" : "You lost!"
 
   end
 
@@ -33,6 +35,7 @@ class Board
 
   def initialize(size)
     @revealed = []
+    @flagged = []
     @size = size
     @board = build_board
     @mine_count = @size == 9 ? 10 : 40
@@ -47,7 +50,13 @@ class Board
   def show
     @size.times do |row|
       @size.times do |col|
-        print @revealed.include?([row, col]) ? "#{@board[row][col]}  " : "-  "
+        if @revealed.include?([row, col])
+          print "#{@board[row][col]}  "
+        elsif @flagged.include?([row, col])
+          print "F  "
+        else
+          print "-  "
+        end
       end
       print "\n"
     end
@@ -62,6 +71,10 @@ class Board
 
   def all_spaces_revealed?
     @revealed.length == @size**2 - @mine_count
+  end
+
+  def flag(row, col)
+    @flagged.include?([row, col]) ? @flagged.delete([row, col]) : @flagged << [row, col]
   end
 
   def reveal(row, col)
@@ -140,13 +153,18 @@ class Player
 
   def move
     @board.show
-    puts "Print move: "
-    move = gets.chomp.split(",").map(&:to_i)
-    until @board.valid_move?(move)
+    puts "Print move (add F if you want to flag):  row, column"
+    input = gets.chomp
+    flag = input.include?("F") ? true : false
+    row, col = input.scan(/\d/).map(&:to_i)
+
+    until @board.valid_move?([row, col])
       puts "Invalid move"
-      move = gets.chomp.split(",").map(&:to_i)
+      input = gets.chomp
+      flag = input.include?("F") ? true : false
+      row, col = input.scan(/\d/).map(&:to_i)
     end
-    move
+    [flag, row, col]
   end
 
 end
