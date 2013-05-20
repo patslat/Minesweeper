@@ -6,14 +6,17 @@ class Minesweeper
   end
 
   def play
+    start_time = Time.now
 
+    flag, row, col = @player.move
+    @board.set_board(row, col)
     until game_over?
       flag, row, col = @player.move
       flag ? @board.flag(row, col) : @board.reveal(row, col)
     end
 
     puts won? ? "You won!" : "You lost!"
-
+    puts "Completed in #{(Time.now - start_time).round(2)} seconds!"
   end
 
   def game_over?
@@ -39,16 +42,27 @@ class Board
     @size = size
     @board = build_board
     @mine_count = @size == 9 ? 10 : 40
-    generate_mines
-    generate_fringe
+
   end
 
   def build_board
     Array.new(@size) { Array.new(@size) }
   end
 
+  def set_board(row, col)
+    generate_mines(row, col)
+    generate_fringe
+    reveal(row, col)
+  end
+
   def show
+    print " " * 5
+    @size.times { |col| print "#{col} ".ljust(3)}
+    print "\n"
+    print " " * 4
+    print "_" * 50 + "\n"
     @size.times do |row|
+      print "#{row}".ljust(3) + "|  "
       @size.times do |col|
         if @revealed.include?([row, col])
           print "#{@board[row][col]}  "
@@ -58,8 +72,11 @@ class Board
           print "-  "
         end
       end
+      print "|"
       print "\n"
     end
+    print " " * 4
+    print "_" * 50 + "\n\n"
     nil
   end
 
@@ -95,13 +112,13 @@ class Board
 
   end
 
-  def generate_mines
+  def generate_mines(row, col)
     mine_coords = []
-
+    ignore = [[row, col]] + get_adjacent_coords(row, col)
     until mine_coords.length == @mine_count
       row = (0...@size).to_a.sample
       col = (0...@size).to_a.sample
-      mine_coords << [row, col] unless mine_coords.include?([row, col])
+      mine_coords << [row, col] unless mine_coords.include?([row, col]) || ignore.include?([row, col])
     end
 
     mine_coords.each do |coord|
@@ -156,22 +173,24 @@ class Player
     puts "Print move (add F if you want to flag):  row, column"
     input = gets.chomp
     flag = input.include?("F") ? true : false
-    row, col = input.scan(/\d/).map(&:to_i)
+    row, col = input.scan(/\d+/).map(&:to_i)
 
     until @board.valid_move?([row, col])
       puts "Invalid move"
       input = gets.chomp
       flag = input.include?("F") ? true : false
-      row, col = input.scan(/\d/).map(&:to_i)
+      row, col = input.scan(/\d+/).map(&:to_i)
     end
     [flag, row, col]
   end
+
+
 
 end
 
 
 if __FILE__ == $PROGRAM_NAME
-  board = Board.new(9)
+  board = Board.new(16)
   player = Player.new(board)
   game = Minesweeper.new(board, player)
   game.play
