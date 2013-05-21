@@ -9,8 +9,6 @@ class Minesweeper
 
   def play
 
-    start_time = Time.now
-
     if load_game?
       load_game
     else
@@ -25,7 +23,6 @@ class Minesweeper
       flag, row, col = get_move until @board.valid_move?([row, col])
       case flag
       when :save
-        p "IN THE CASE"
         save_game
         quit
       when :flag
@@ -37,10 +34,11 @@ class Minesweeper
 
     prompt_won if won?
     prompt_lost if lost?
-    puts "Completed in #{(Time.now - start_time).round(2)} seconds!"
+    puts "Completed in #{(Time.now - @board.time).round(2)} seconds!"
   end
 
   def save_game
+    @board.time = @board.time - Time.now
     File.open("saved_game.yml", "w") { |f| f.write(@board.to_yaml) }
   end
 
@@ -51,6 +49,7 @@ class Minesweeper
 
   def load_game
     @board = YAML.load(File.open("saved_game.yml"))
+    @board.time = Time.now + @board.time
   end
 
 
@@ -93,6 +92,7 @@ end
 
 class Board
   attr_reader :board
+  attr_accessor :time
 
   def initialize(size)
     @revealed = []
@@ -100,6 +100,7 @@ class Board
     @size = size
     @board = build_board
     @mine_count = @size == 9 ? 10 : 40
+    @time = Time.now
   end
 
   def build_board
@@ -218,6 +219,7 @@ class Board
   end
 
   def valid_move?(move)
+    return true if move == [:save, :save]
     row, col = move
     (0...@size).include?(row) && (0...@size).include?(col) && !@revealed.include?(move) && !@flagged.include?(move)
   end
@@ -237,7 +239,7 @@ class Player
     row, col = input.scan(/\d+/).map(&:to_i)
     if input.include?("save")
       flag = :save
-      row, col = [0, 0]
+      row, col = [:save, :save]
     end
     [flag, row, col]
   end
