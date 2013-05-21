@@ -1,3 +1,5 @@
+require "json"
+require "yaml"
 class Minesweeper
 
   def initialize(board, player)
@@ -6,16 +8,31 @@ class Minesweeper
   end
 
   def play
+    # load_game if load_game?
     start_time = Time.now
 
-    flag, row, col = @player.move
+    # flag, row, col = get_move
+    # player.move
+    #
+    # until valid_move?
+    #   prompt_invalid
+    #   player.move
+    # end
+    # flag, row, col
+    @board.show
+    flag, row, col = get_move until @board.valid_move?([row, col])
+    # save && quit if flag == :save
+    # flag, row, col = get_move
     @board.set_board(row, col)
+    flag == :flag ? @board.flag(row, col) : @board.reveal(row, col)
     until game_over?
-      flag, row, col = @player.move
-      flag ? @board.flag(row, col) : @board.reveal(row, col)
+      @board.show
+      flag, row, col = get_move until @board.valid_move?([row, col])
+      flag == :flag ? @board.flag(row, col) : @board.reveal(row, col)
     end
 
-    puts won? ? "You won!" : "You lost!"
+    prompt_won if won?
+    prompt_lost if lost?
     puts "Completed in #{(Time.now - start_time).round(2)} seconds!"
   end
 
@@ -27,8 +44,26 @@ class Minesweeper
     @board.all_spaces_revealed?
   end
 
+  def prompt_won
+    puts "You won!"
+  end
+
+  def prompt_lost
+    puts "You lost!"
+  end
+
   def lost?
     @board.mine_revealed?
+  end
+
+  def get_move
+    prompt_user
+    flag, row, col = @player.move
+    [flag, row, col]
+  end
+
+  def prompt_user
+    print "Input move: "
   end
 
 end
@@ -42,7 +77,6 @@ class Board
     @size = size
     @board = build_board
     @mine_count = @size == 9 ? 10 : 40
-
   end
 
   def build_board
@@ -52,7 +86,6 @@ class Board
   def set_board(row, col)
     generate_mines(row, col)
     generate_fringe
-    reveal(row, col)
   end
 
   def show
@@ -60,7 +93,7 @@ class Board
     @size.times { |col| print "#{col} ".ljust(3)}
     print "\n"
     print " " * 4
-    print "_" * 50 + "\n"
+    print "_" * (@size * 3) + "\n"
     @size.times do |row|
       print "#{row}".ljust(3) + "|  "
       @size.times do |col|
@@ -76,7 +109,7 @@ class Board
       print "\n"
     end
     print " " * 4
-    print "_" * 50 + "\n\n"
+    print "_" * (@size * 3) + "\n\n"
     nil
   end
 
@@ -87,7 +120,7 @@ class Board
   end
 
   def all_spaces_revealed?
-    @revealed.length == @size**2 - @mine_count
+    @revealed.length == @size ** 2 - @mine_count
   end
 
   def flag(row, col)
@@ -141,6 +174,7 @@ class Board
   end
 
   def get_adjacent_coords(row, col)
+    # diffs = [[-1, 1], [0, -1]]
     adjacents = [[row - 1, col + 1], [row, col + 1], [row + 1, col + 1],
     [row - 1, col], [row + 1, col], [row - 1, col - 1], [row, col - 1], [row + 1, col - 1]]
 
@@ -156,6 +190,10 @@ class Board
     values
   end
 
+  def on_board?(move)
+    move.all? { |coord| coord.between?(0, @size) }
+  end
+
   def valid_move?(move)
     row, col = move
     (0...@size).include?(row) && (0...@size).include?(col) && !@revealed.include?(move)
@@ -169,18 +207,12 @@ class Player
   end
 
   def move
-    @board.show
-    puts "Print move (add F if you want to flag):  row, column"
     input = gets.chomp
-    flag = input.include?("F") ? true : false
-    row, col = input.scan(/\d+/).map(&:to_i)
 
-    until @board.valid_move?([row, col])
-      puts "Invalid move"
-      input = gets.chomp
-      flag = input.include?("F") ? true : false
-      row, col = input.scan(/\d+/).map(&:to_i)
-    end
+    flag = input.include?("F") ? :flag : nil
+    flag = :save if input.include?("save")
+
+    row, col = input.scan(/\d+/).map(&:to_i)
     [flag, row, col]
   end
 
@@ -190,9 +222,17 @@ end
 
 
 if __FILE__ == $PROGRAM_NAME
-  board = Board.new(16)
+  board = Board.new(9)
   player = Player.new(board)
   game = Minesweeper.new(board, player)
   game.play
 
+ #  File.open("minesweeper_small.yml", "w"){ |f| f.write(game.to_yaml) }
+ #
+ #  board = Board.new(16)
+ #  player = Player.new(board)
+ #  game = Minesweeper.new(board, player)
+ #
+ #  File.open("minesweeper_large.yml", "w"){ |f| f.write(game.to_yaml) }
+ #  new_game = YAML.load(File.open("minesweeper_large.yml"))
 end
