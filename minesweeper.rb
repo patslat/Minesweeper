@@ -8,32 +8,55 @@ class Minesweeper
   end
 
   def play
-    # load_game if load_game?
+
     start_time = Time.now
 
-    # flag, row, col = get_move
-    # player.move
-    #
-    # until valid_move?
-    #   prompt_invalid
-    #   player.move
-    # end
-    # flag, row, col
-    @board.show
-    flag, row, col = get_move until @board.valid_move?([row, col])
-    # save && quit if flag == :save
-    # flag, row, col = get_move
-    @board.set_board(row, col)
-    flag == :flag ? @board.flag(row, col) : @board.reveal(row, col)
+    if load_game?
+      load_game
+    else
+      @board.show
+      flag, row, col = get_move until @board.valid_move?([row, col])
+      @board.set_board(row, col)
+      flag == :flag ? @board.flag(row, col) : @board.reveal(row, col)
+    end
+
     until game_over?
       @board.show
       flag, row, col = get_move until @board.valid_move?([row, col])
-      flag == :flag ? @board.flag(row, col) : @board.reveal(row, col)
+      case flag
+      when :save
+        p "IN THE CASE"
+        save_game
+        quit
+      when :flag
+        @board.flag(row, col)
+      else
+        @board.reveal(row, col)
+      end
     end
 
     prompt_won if won?
     prompt_lost if lost?
     puts "Completed in #{(Time.now - start_time).round(2)} seconds!"
+  end
+
+  def save_game
+    File.open("saved_game.yml", "w") { |f| f.write(@board.to_yaml) }
+  end
+
+  def load_game?
+    puts "Do you want to load your last game? (y/n)"
+    gets.chomp == "y" ? true : false
+  end
+
+  def load_game
+    @board = YAML.load(File.open("saved_game.yml"))
+  end
+
+
+
+  def quit
+    Process.exit(0)
   end
 
   def game_over?
@@ -196,7 +219,7 @@ class Board
 
   def valid_move?(move)
     row, col = move
-    (0...@size).include?(row) && (0...@size).include?(col) && !@revealed.include?(move)
+    (0...@size).include?(row) && (0...@size).include?(col) && !@revealed.include?(move) && !@flagged.include?(move)
   end
 end
 
@@ -210,9 +233,12 @@ class Player
     input = gets.chomp
 
     flag = input.include?("F") ? :flag : nil
-    flag = :save if input.include?("save")
 
     row, col = input.scan(/\d+/).map(&:to_i)
+    if input.include?("save")
+      flag = :save
+      row, col = [0, 0]
+    end
     [flag, row, col]
   end
 
